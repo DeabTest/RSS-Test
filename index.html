@@ -6,29 +6,29 @@
     <title>RSS Läsare</title>
     <style>
         body {
-            background-color: black; /* Svart bakgrund */
-            color: white;           /* Vit text */
-            font-family: Arial, sans-serif; /* Typsnitt Arial */
+            background-color: black;
+            color: white;
+            font-family: Arial, sans-serif;
             margin: 0;
             padding: 0;
             display: flex;
-            justify-content: flex-start; /* Placera innehåll i vänsterkant */
-            align-items: center;         /* Vertikal centrering */
+            justify-content: flex-start;
+            align-items: center;
             height: 100vh;
         }
         #rssFeed {
             max-width: 100%;
-            padding-left: 20px; /* Padding till vänster */
+            padding-left: 20px;
             box-sizing: border-box;
-            line-height: 1.2; /* Ökat radavstånd */
+            line-height: 1.2;
         }
         .event-title {
-            font-size: 48px; /* Större textstorlek */
+            font-size: 48px;
             margin: 0;
-            white-space: nowrap; /* Förhindra radbrytning */
-            overflow: hidden; /* Döljer överflödig text */
-            text-overflow: ellipsis; /* "...", om texten är för lång */
-            text-align: left; /* Vänsterställd text */
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: left;
         }
     </style>
 </head>
@@ -47,7 +47,6 @@
 
     const monthMap = { "jan": 1, "feb": 2, "mar": 3, "apr": 4, "maj": 5, "jun": 6, "jul": 7, "aug": 8, "sep": 9, "okt": 10, "nov": 11, "dec": 12 };
 
-    // Funktion för att extrahera och formatera datumintervall
     function formatDateRange(title) {
         const datePattern = /^(\d{1,2})\s(\w{3})(?:\s?-\s?(\d{1,2})\s?(\w{3}))?/i;
         const match = title.match(datePattern);
@@ -64,7 +63,6 @@
         return '';
     }
 
-    // Funktion för att hämta RSS-flödet med timeout
     async function fetchRSSWithTimeout(url, timeout = 5000) {
         return Promise.race([
             fetch(url),
@@ -72,7 +70,6 @@
         ]);
     }
 
-    // Funktion för att hämta och visa RSS-flödet
     async function fetchRSS() {
         try {
             const response = await fetchRSSWithTimeout(rssUrl);
@@ -87,11 +84,11 @@
 
             for (let i = 0; i < items.length; i++) {
                 let title = items[i].getElementsByTagName("title")[0]?.textContent || '';
+                const formattedDate = formatDateRange(title);
 
-                const formattedDate = formatDateRange(title); // Extrahera och formatera datum
-                title = title.replace(/^(\d{1,2}\s\w{3}(?:\s?-\s?\d{1,2}\s?\w{3})?)\s*/, '').trim(); // Ta bort datum i början
+                // Ta bort datum från början och säkerställ rätt format
+                title = title.replace(/^(\d{1,2}\s\w{3}(?:\s?-\s?\d{1,2}\s?\w{3})?)\s*/, '').replace(/^,/, '').trim();
 
-                // Kombinera datum och titel med exakt ett mellanslag
                 const displayTitle = `${formattedDate} ${title}`.trim();
 
                 events.push({ title: displayTitle });
@@ -108,7 +105,6 @@
         }
     }
 
-    // Funktion för att visa nästa evenemang
     function showNextEvent() {
         const eventTitle = document.getElementById("eventTitle");
 
@@ -122,15 +118,13 @@
         }
     }
 
-    // Funktion för att återgå till välkomstmeddelande
     function resetToWelcomeMessage() {
         const eventTitle = document.getElementById("eventTitle");
         eventTitle.textContent = 'Välkommen till Eskilstuna';
     }
 
-    // Initial hämtning av RSS-flödet
     fetchRSS();
-    setInterval(fetchRSS, 60000); // Uppdatera RSS-flödet var 1 minut
+    setInterval(fetchRSS, 60000);
 </script>
 
 </body>
