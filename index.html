@@ -84,10 +84,7 @@
                 title = title.replace(/(\d{1,2}\s\w{3})(\s?-\s?\d{1,2}\s\w{3})?/gi, '').trim(); // Ta bort datum från titeln
 
                 // Bygg korrekt displayTitle med mellanslag istället för komma
-                let displayTitle = formattedDate;
-                if (title) {
-                    displayTitle += ` ${title}`;
-                }
+                let displayTitle = formattedDate + (title ? ` ${title}` : '');
 
                 events.push({ title: displayTitle });
             }
