@@ -83,8 +83,9 @@
                 const formattedDate = formatDateRange(title); // Extrahera och formatera datum
                 title = title.replace(/^\s*[\d\s\w\/\-]+/, '').trim(); // Ta bort datum i början av titeln
 
-                // Bygg korrekt displayTitle med mellanslag endast om titel finns
-                let displayTitle = formattedDate + (title ? ` ${title}` : '');
+                // Bygg korrekt displayTitle med endast mellanslag mellan datum och titel
+                let cleanTitle = title.trim();
+                let displayTitle = cleanTitle ? `${formattedDate} ${cleanTitle}` : formattedDate;
 
                 events.push({ title: displayTitle });
             }
