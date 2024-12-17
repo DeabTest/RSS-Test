@@ -83,9 +83,11 @@
                 const formattedDate = formatDateRange(title); // Extrahera och formatera datum
                 title = title.replace(/(\d{1,2}\s\w{3})(\s?-\s?\d{1,2}\s\w{3})?/gi, '').trim(); // Ta bort datum från titeln
 
-                // Rensa onödiga kommatecken och bygg korrekt displayTitle
-                let cleanTitle = title.replace(/^\s*,\s*|\s*,\s*$/g, ''); 
-                let displayTitle = formattedDate ? `${formattedDate}, ${cleanTitle}` : cleanTitle;
+                // Bygg korrekt displayTitle med mellanslag istället för komma
+                let displayTitle = formattedDate;
+                if (title) {
+                    displayTitle += ` ${title}`;
+                }
 
                 events.push({ title: displayTitle });
             }
