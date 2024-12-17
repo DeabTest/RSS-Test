@@ -85,7 +85,7 @@
 
                 // Bygg upp titel utan överflödiga kommatecken
                 let displayTitle = formattedDate;
-                if (title) {
+                if (title.trim()) { // Kontrollera att titeln inte är tom
                     displayTitle += `, ${title}`;
                 }
 
