@@ -49,7 +49,7 @@
 
     // Funktion för att extrahera och formatera datumintervall
     function formatDateRange(title) {
-        const datePattern = /(\d{1,2})\s(\w{3})(?:\s?-\s?(\d{1,2})\s?(\w{3}))?/i;
+        const datePattern = /^(\d{1,2})\s(\w{3})(?:\s?-\s?(\d{1,2})\s?(\w{3}))?/i;
         const match = title.match(datePattern);
         if (match) {
             const startDay = parseInt(match[1], 10);
@@ -64,10 +64,18 @@
         return '';
     }
 
+    // Funktion för att hämta RSS-flödet med timeout
+    async function fetchRSSWithTimeout(url, timeout = 5000) {
+        return Promise.race([
+            fetch(url),
+            new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), timeout))
+        ]);
+    }
+
     // Funktion för att hämta och visa RSS-flödet
     async function fetchRSS() {
         try {
-            const response = await fetch(rssUrl);
+            const response = await fetchRSSWithTimeout(rssUrl);
             if (!response.ok) throw new Error("Kunde inte hämta RSS-flödet.");
 
             const data = await response.json();
@@ -81,7 +89,7 @@
                 let title = items[i].getElementsByTagName("title")[0]?.textContent || '';
 
                 const formattedDate = formatDateRange(title); // Extrahera och formatera datum
-                title = title.replace(/^\s*\d{1,2}\s\w{3}(?:\s?-\s?\d{1,2}\s\w{3})?\s*/, '').trim(); // Ta bort datum i början och mellanslag
+                title = title.replace(/^(\d{1,2}\s\w{3}(?:\s?-\s?\d{1,2}\s?\w{3})?)\s*/, '').trim(); // Ta bort datum i början
 
                 // Kombinera datum och titel med exakt ett mellanslag
                 const displayTitle = `${formattedDate} ${title}`.trim();
@@ -95,6 +103,7 @@
             }
 
         } catch (error) {
+            console.error(error);
             resetToWelcomeMessage();
         }
     }
@@ -119,7 +128,7 @@
         eventTitle.textContent = 'Välkommen till Eskilstuna';
     }
 
-    // Kör funktionen för att hämta RSS-flödet initialt
+    // Initial hämtning av RSS-flödet
     fetchRSS();
     setInterval(fetchRSS, 60000); // Uppdatera RSS-flödet var 1 minut
 </script>
