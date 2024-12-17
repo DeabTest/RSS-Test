@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSS Läsare</title>
+    <style>
+        body {
+            background-color: black; /* Svart bakgrund */
+            color: white;           /* Vit text */
+            font-family: Arial, sans-serif; /* Typsnitt Arial */
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: flex-start; /* Placera innehåll i vänster kant */
+            align-items: center;   /* Vertikal centrering */
+            height: 100vh;
+        }
+        #rssFeed {
+            max-width: 100%; /* Använd hela skärmbredden */
+            padding-left: 20px; /* Minskad vänster-padding */
+            line-height: 1.1; /* Kompakt radavstånd */
+            box-sizing: border-box; /* Inkludera padding i bredd */
+            text-align: left; /* Vänsterställ texten */
+        }
+        .event-title {
+            font-size: 24px; /* Huvudtextstorlek */
+            margin: 0;
+            white-space: nowrap; /* Förhindra radbrytning */
+            overflow: hidden; /* Dölja överskjutande text */
+            text-overflow: ellipsis; /* "..." för text som inte ryms */
+        }
+        .event-location {
+            font-size: 18px; /* Mindre textstorlek för platsen */
+            margin: 5px 0 0;
+            color: white; /* Vit text */
+            white-space: nowrap; /* Förhindra radbrytning */
+            overflow: hidden; /* Dölja överskjutande text */
+            text-overflow: ellipsis; /* "..." för text som inte ryms */
+        }
+    </style>
+</head>
+<body>
+
+<div id="rssFeed">
+    <div id="eventTitle" class="event-title">Välkommen till Eskilstuna</div>
+    <div id="eventLocation" class="event-location"></div>
+</div>
+
+<script>
+    const rssUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent('https://visiteskilstuna.se/rest-api/rssService/getRssFeed?portletId=12.5b899160171ac5273c72ad9f&pageId=2.369be3c31580a19562d1977e');
+
+    let events = []; // Lagrar alla evenemang
+    let currentEventIndex = 0; // Index för aktuellt evenemang
+    let eventInterval; // Variabel för att lagra setInterval
+
+    // Funktion för att hämta och visa RSS-flödet
+    async function fetchRSS() {
+        const rssFeed = document.getElementById("rssFeed");
+        try {
+            const response = await fetch(rssUrl);
+            if (!response.ok) {
+                resetToWelcomeMessage();
+                return;
+            }
+
+            const data = await response.json();
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(data.contents, "text/xml");
+
+            const items = xmlDoc.getElementsByTagName("item");
+            if (items.length === 0) {
+                resetToWelcomeMessage();
+                return;
+            }
+
+            // Spara titlar och platser för alla evenemang
+            events = [];
+            for (let i = 0; i < items.length; i++) {
+                const title = items[i].getElementsByTagName("title")[0]?.textContent || 'Okänt evenemang';
+                const location = items[i].getElementsByTagName("description")[0]?.textContent || 'Plats ej angiven';
+                events.push({ title, location });
+            }
+
+            // Starta visning av evenemang om det inte redan körs
+            if (!eventInterval) {
+                showNextEvent(); // Visa första evenemanget
+                eventInterval = setInterval(showNextEvent, 10000); // Växla var 10:e sekund
+            }
+
+        } catch (error) {
+            console.error('Fel vid hämtning av RSS-flödet:', error);
+            resetToWelcomeMessage();
+        }
+    }
+
+    // Funktion för att visa nästa evenemang
+    function showNextEvent() {
+        const eventTitle = document.getElementById("eventTitle");
+        const eventLocation = document.getElementById("eventLocation");
+
+        if (events.length > 0) {
+            const currentEvent = events[currentEventIndex];
+            eventTitle.textContent = currentEvent.title;
+            eventLocation.textContent = currentEvent.location;
+
+            currentEventIndex = (currentEventIndex + 1) % events.length; // Går till nästa, loopar om vid slut
+        } else {
+            resetToWelcomeMessage();
+        }
+    }
+
+    // Funktion för att återgå till välkomstmeddelande
+    function resetToWelcomeMessage() {
+        const eventTitle = document.getElementById("eventTitle");
+        const eventLocation = document.getElementById("eventLocation");
+
+        eventTitle.textContent = 'Välkommen till Eskilstuna';
+        eventLocation.textContent = '';
+    }
+
+    // Kör funktionen för att hämta RSS-flödet initialt
+    fetchRSS();
+
+    // Uppdatera RSS-flödet var 1 minut (60000 ms)
+    setInterval(fetchRSS, 60000);
+</script>
+
+</body>
+</html>
