@@ -89,10 +89,10 @@
                 let title = items[i].getElementsByTagName("title")[0]?.textContent || '';
 
                 const formattedDate = formatDateRange(title);
-                title = title.replace(/^(\d{1,2}\s\w{3}(?:\s?-\s?\d{1,2}\s?\w{3})?)\s*/, '').trim();
+                title = title.replace(/^(\d{1,2}\s\w{3}(?:\s?-\s?\d{1,2}\s?\w{3})?)\s*/, '').replace(/^,/, '').trim();
 
                 // Kombinera datum och titel utan kommatecken
-                const displayTitle = `${formattedDate} ${title}`.trim();
+                const displayTitle = `${formattedDate} ${title}`.replace(/\s*,\s*/g, ' ').trim();
 
                 events.push({ title: displayTitle });
             }
