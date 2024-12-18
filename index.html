@@ -30,7 +30,7 @@
             line-height: 1.2;
         }
         .event-title {
-            font-size: 30px; /* Standardstorlek */
+            font-size: 30px;
             margin: 0;
             white-space: nowrap;
             overflow: hidden;
@@ -96,7 +96,9 @@
                 let title = items[i].getElementsByTagName("title")[0]?.textContent || '';
 
                 const formattedDate = formatDateRange(title);
-                title = title.replace(/^(\d{1,2}\s\w{3}(?:\s?-\s?\d{1,2}\s?\w{3})?)\s*/, '').trim();
+
+                // Rensa bort datum och eventuella oönskade kommatecken
+                title = title.replace(/^(\d{1,2}\s\w{3}(?:\s?-\s?\d{1,2}\s?\w{3})?)\s*,?\s*/, '').trim();
 
                 const displayTitle = `${formattedDate} ${title}`.trim();
 
