@@ -23,7 +23,7 @@
             line-height: 1.2;
         }
         .event-title {
-            font-size: 48px; /* Standardstorlek */
+            font-size: 30px; /* Standardstorlek */
             margin: 0;
             white-space: nowrap; /* Förhindra radbrytning */
             overflow: hidden; /* Döljer överflödig text */
@@ -66,7 +66,7 @@
     function adjustFontSize(element, maxLength, baseFontSize = 30) {
         const text = element.textContent.trim();
         if (text.length > maxLength) {
-            const scaleFactor = maxLength / text.length;
+            const scaleFactor = Math.max(maxLength / text.length, 0.9); // Begränsa så att fontstorleken aldrig går under 90% av baseFontSize
             element.style.fontSize = `${baseFontSize * scaleFactor}px`;
         } else {
             element.style.fontSize = `${baseFontSize}px`;
@@ -91,7 +91,9 @@
                 const formattedDate = formatDateRange(title);
                 title = title.replace(/^(\d{1,2}\s\w{3}(?:\s?-\s?\d{1,2}\s?\w{3})?)\s*/, '').trim();
 
+                // Kombinera datum och titel utan kommatecken
                 const displayTitle = `${formattedDate} ${title}`.trim();
+
                 events.push({ title: displayTitle });
             }
 
