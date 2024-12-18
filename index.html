@@ -5,10 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RSS Läsare</title>
     <style>
+        @font-face {
+            font-family: 'DIN Alternate';
+            src: url('DIN_Alternate_Bold.woff') format('woff');
+            font-weight: normal;
+            font-style: normal;
+        }
+
         body {
             background-color: black;
             color: white;
-            font-family: Arial, sans-serif;
+            font-family: 'DIN Alternate', Arial, sans-serif;
             margin: 0;
             padding: 0;
             display: flex;
@@ -18,7 +25,7 @@
         }
         #rssFeed {
             max-width: 100%;
-            padding-left: 10px;
+            padding-left: 20px;
             box-sizing: border-box;
             line-height: 1.2;
         }
@@ -66,7 +73,7 @@
     function adjustFontSize(element, maxLength, baseFontSize = 30) {
         const text = element.textContent.trim();
         if (text.length > maxLength) {
-            const scaleFactor = Math.max(maxLength / text.length, 1); // Begränsa så att fontstorleken aldrig går under 30px
+            const scaleFactor = Math.max(maxLength / text.length, 1);
             element.style.fontSize = `${baseFontSize * scaleFactor}px`;
         } else {
             element.style.fontSize = `${baseFontSize}px`;
@@ -89,10 +96,9 @@
                 let title = items[i].getElementsByTagName("title")[0]?.textContent || '';
 
                 const formattedDate = formatDateRange(title);
-                title = title.replace(/^(\d{1,2}\s\w{3}(?:\s?-\s?\d{1,2}\s?\w{3})?)\s*/, '').replace(/^,/, '').trim();
+                title = title.replace(/^(\d{1,2}\s\w{3}(?:\s?-\s?\d{1,2}\s?\w{3})?)\s*/, '').trim();
 
-                // Kombinera datum och titel utan kommatecken
-                const displayTitle = `${formattedDate} ${title}`.replace(/\s*,\s*/g, ' ').trim();
+                const displayTitle = `${formattedDate} ${title}`.trim();
 
                 events.push({ title: displayTitle });
             }
@@ -115,7 +121,7 @@
             const currentEvent = events[currentEventIndex];
             eventTitle.textContent = currentEvent.title;
 
-            adjustFontSize(eventTitle, 31); // Justera storleken om längre än 31 tecken
+            adjustFontSize(eventTitle, 31);
 
             currentEventIndex = (currentEventIndex + 1) % events.length;
         } else {
@@ -126,7 +132,7 @@
     function resetToWelcomeMessage() {
         const eventTitle = document.getElementById("eventTitle");
         eventTitle.textContent = 'Välkommen till Eskilstuna';
-        adjustFontSize(eventTitle, 31); // Justera storleken för välkomstmeddelandet
+        adjustFontSize(eventTitle, 31);
     }
 
     fetchRSS();
