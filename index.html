@@ -6,14 +6,14 @@
     <title>RSS Läsare</title>
     <style>
         body {
-            background-color: black;
-            color: white;
-            font-family: Arial, sans-serif;
+            background-color: black; /* Svart bakgrund */
+            color: white;           /* Vit text */
+            font-family: Arial, sans-serif; /* Typsnitt Arial */
             margin: 0;
             padding: 0;
             display: flex;
-            justify-content: flex-start;
-            align-items: center;
+            justify-content: flex-start; /* Placera innehåll i vänsterkant */
+            align-items: center;         /* Vertikal centrering */
             height: 100vh;
         }
         #rssFeed {
@@ -23,12 +23,12 @@
             line-height: 1.2;
         }
         .event-title {
-            font-size: 32px;
+            font-size: 48px; /* Standardstorlek */
             margin: 0;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            text-align: left;
+            white-space: nowrap; /* Förhindra radbrytning */
+            overflow: hidden; /* Döljer överflödig text */
+            text-overflow: ellipsis; /* "..." om texten är för lång */
+            text-align: left; /* Vänsterställd text */
         }
     </style>
 </head>
@@ -63,16 +63,19 @@
         return '';
     }
 
-    async function fetchRSSWithTimeout(url, timeout = 5000) {
-        return Promise.race([
-            fetch(url),
-            new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), timeout))
-        ]);
+    function adjustFontSize(element, maxLength, baseFontSize = 30) {
+        const text = element.textContent.trim();
+        if (text.length > maxLength) {
+            const scaleFactor = maxLength / text.length;
+            element.style.fontSize = `${baseFontSize * scaleFactor}px`;
+        } else {
+            element.style.fontSize = `${baseFontSize}px`;
+        }
     }
 
     async function fetchRSS() {
         try {
-            const response = await fetchRSSWithTimeout(rssUrl);
+            const response = await fetch(rssUrl);
             if (!response.ok) throw new Error("Kunde inte hämta RSS-flödet.");
 
             const data = await response.json();
@@ -84,13 +87,11 @@
 
             for (let i = 0; i < items.length; i++) {
                 let title = items[i].getElementsByTagName("title")[0]?.textContent || '';
-                const formattedDate = formatDateRange(title);
 
-                // Ta bort datum från början och säkerställ rätt format
-                title = title.replace(/^(\d{1,2}\s\w{3}(?:\s?-\s?\d{1,2}\s?\w{3})?)\s*/, '').replace(/^,/, '').trim();
+                const formattedDate = formatDateRange(title);
+                title = title.replace(/^(\d{1,2}\s\w{3}(?:\s?-\s?\d{1,2}\s?\w{3})?)\s*/, '').trim();
 
                 const displayTitle = `${formattedDate} ${title}`.trim();
-
                 events.push({ title: displayTitle });
             }
 
@@ -112,6 +113,8 @@
             const currentEvent = events[currentEventIndex];
             eventTitle.textContent = currentEvent.title;
 
+            adjustFontSize(eventTitle, 31); // Justera storleken om längre än 31 tecken
+
             currentEventIndex = (currentEventIndex + 1) % events.length;
         } else {
             resetToWelcomeMessage();
@@ -121,6 +124,7 @@
     function resetToWelcomeMessage() {
         const eventTitle = document.getElementById("eventTitle");
         eventTitle.textContent = 'Välkommen till Eskilstuna';
+        adjustFontSize(eventTitle, 31); // Justera storleken för välkomstmeddelandet
     }
 
     fetchRSS();
