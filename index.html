@@ -6,14 +6,14 @@
     <title>RSS Läsare</title>
     <style>
         body {
-            background-color: black; /* Svart bakgrund */
-            color: white;           /* Vit text */
-            font-family: Arial, sans-serif; /* Typsnitt Arial */
+            background-color: black;
+            color: white;
+            font-family: Arial, sans-serif;
             margin: 0;
             padding: 0;
             display: flex;
-            justify-content: flex-start; /* Placera innehåll i vänsterkant */
-            align-items: center;         /* Vertikal centrering */
+            justify-content: flex-start;
+            align-items: center;
             height: 100vh;
         }
         #rssFeed {
@@ -25,10 +25,10 @@
         .event-title {
             font-size: 30px; /* Standardstorlek */
             margin: 0;
-            white-space: nowrap; /* Förhindra radbrytning */
-            overflow: hidden; /* Döljer överflödig text */
-            text-overflow: ellipsis; /* "..." om texten är för lång */
-            text-align: left; /* Vänsterställd text */
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: left;
         }
     </style>
 </head>
@@ -66,7 +66,7 @@
     function adjustFontSize(element, maxLength, baseFontSize = 30) {
         const text = element.textContent.trim();
         if (text.length > maxLength) {
-            const scaleFactor = Math.max(maxLength / text.length, 0.9); // Begränsa så att fontstorleken aldrig går under 90% av baseFontSize
+            const scaleFactor = Math.max(maxLength / text.length, 1); // Begränsa så att fontstorleken aldrig går under 30px
             element.style.fontSize = `${baseFontSize * scaleFactor}px`;
         } else {
             element.style.fontSize = `${baseFontSize}px`;
