@@ -63,6 +63,12 @@
         return '';
     }
 
+    function decodeHtmlEntities(text) {
+        const textarea = document.createElement('textarea');
+        textarea.innerHTML = text;
+        return textarea.value;
+    }
+
     async function fetchRSS() {
         try {
             const response = await fetch(rssUrl);
@@ -80,7 +86,7 @@
                 // Ta bort datum från början och säkerställ rätt format
                 title = title.replace(/^(\d{1,2}\s\w{3}(?:\s?-\s?\d{1,2}\s?\w{3})?)\s*/, '').replace(/^,/, '').trim();
 
-                const displayTitle = `${formattedDate} ${title}`.trim();
+                const displayTitle = `${formattedDate} ${decodeHtmlEntities(title)}`.trim();
 
                 events.push({ title: displayTitle });
             }
