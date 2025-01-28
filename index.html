@@ -2,8 +2,8 @@
 <html lang="sv">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=576, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RSS Läsare</title> <!-- Originaltitel återställd -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSS Läsare</title>
     <style>
         body {
             background-color: black;
@@ -11,39 +11,40 @@
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 0;
-            width: 576px;
-            height: 64px;
             display: flex;
+            justify-content: flex-start;
             align-items: center;
-            overflow: hidden;
+            height: 100vh;
         }
         #rssFeed {
-            width: 100%;
-            padding: 0 10px;
+            max-width: 100%;
+            padding-left: 10px;
             box-sizing: border-box;
+            line-height: 1.2;
         }
         .event-title {
-            font-size: 64px;
+            font-size: 30px;
+            margin: 0;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            max-width: 100%;
-            margin: 0;
-            line-height: 1;
-            transform-origin: left center;
+            text-align: left;
         }
     </style>
 </head>
 <body>
 
 <div id="rssFeed">
-    <div id="eventTitle" class="event-title">Välkommen till Eskilstuna</div>
+    <div id="eventTitle" class="event-title">VÄLKOMMEN TILL ESKILSTUNA</div>
 </div>
 
 <script>
-    const rssUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent('https://visiteskilstuna.se/rest-api/rssService/getRssFeed?portletId=12.5b899160171ac5273c72ad9f&pageId=2.369be3c31580a19562d1977e');
+    const rssUrl = 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent('https://visiteskilstuna.se/rest-api/rssService/getRssFeed?portletId=12.5b899160171ac5273c72ad9f&pageId=2.369be3c31580a19562d1977e');
+
     let events = [];
     let currentEventIndex = 0;
+    let eventInterval;
+
     const monthMap = { "jan": 1, "feb": 2, "mar": 3, "apr": 4, "maj": 5, "jun": 6, "jul": 7, "aug": 8, "sep": 9, "okt": 10, "nov": 11, "dec": 12 };
 
     function formatDateRange(title) {
@@ -62,48 +63,39 @@
         return '';
     }
 
-    function adjustFontSize() {
-        const titleElement = document.getElementById("eventTitle");
-        const containerWidth = 576 - 20; // 576px - 10px padding
-        const currentText = titleElement.textContent;
-        
-        let fontSize = 64;
-        if (currentText.length > 31) {
-            const lengthOverflow = currentText.length - 31;
-            fontSize = Math.max(24, 64 - (lengthOverflow * 3));
-        }
-        
-        titleElement.style.fontSize = `${fontSize}px`;
-        if (titleElement.scrollWidth > containerWidth) {
-            const scaleFactor = containerWidth / titleElement.scrollWidth;
-            fontSize = Math.floor(fontSize * scaleFactor);
-            titleElement.style.fontSize = `${fontSize}px`;
-        }
+    function decodeHtmlEntities(text) {
+        const textarea = document.createElement('textarea');
+        textarea.innerHTML = text;
+        return textarea.value;
     }
 
     async function fetchRSS() {
         try {
             const response = await fetch(rssUrl);
-            if (!response.ok) throw new Error("Kunde inte hämta RSS-flödet");
-            
+            if (!response.ok) throw new Error("Kunde inte hämta RSS-flödet.");
+
             const data = await response.json();
-            const parser = new DOMParser();
-            const xmlDoc = parser.parseFromString(data.contents, "text/xml");
-            const items = xmlDoc.getElementsByTagName("item");
+            const items = data.items;
+
             events = [];
 
             for (let i = 0; i < items.length; i++) {
-                let title = items[i].getElementsByTagName("title")[0]?.textContent || '';
-                title = title.slice(0, 35); // Hård begränsning
+                let title = items[i].title || '';
                 const formattedDate = formatDateRange(title);
-                title = title.replace(/^(\d{1,2}\s\w{3}(?:\s?-\s?\d{1,2}\s?\w{3})?)\s*/, '').trim();
-                events.push({ title: `${formattedDate} ${title}`.trim() });
+
+                // Ta bort datum från början och säkerställ rätt format
+                title = title.replace(/^(\d{1,2}\s\w{3}(?:\s?-\s?\d{1,2}\s?\w{3})?)\s*/, '').replace(/^,/, '').trim();
+
+                const displayTitle = `${formattedDate} ${decodeHtmlEntities(title)}`.trim();
+
+                events.push({ title: displayTitle });
             }
 
             if (!eventInterval) {
-                eventInterval = setInterval(showNextEvent, 10000);
                 showNextEvent();
+                eventInterval = setInterval(showNextEvent, 10000);
             }
+
         } catch (error) {
             console.error(error);
             resetToWelcomeMessage();
@@ -112,9 +104,11 @@
 
     function showNextEvent() {
         const eventTitle = document.getElementById("eventTitle");
+
         if (events.length > 0) {
-            eventTitle.textContent = events[currentEventIndex].title;
-            adjustFontSize();
+            const currentEvent = events[currentEventIndex];
+            eventTitle.textContent = currentEvent.title;
+
             currentEventIndex = (currentEventIndex + 1) % events.length;
         } else {
             resetToWelcomeMessage();
@@ -123,12 +117,11 @@
 
     function resetToWelcomeMessage() {
         const eventTitle = document.getElementById("eventTitle");
-        eventTitle.textContent = 'Välkommen till Eskilstuna';
-        eventTitle.style.fontSize = '64px';
+        eventTitle.textContent = 'VÄLKOMMEN TILL ESKILSTUNA'; // Alltid i versaler
     }
 
     fetchRSS();
-    setInterval(fetchRSS, 30000);
+    setInterval(fetchRSS, 60000);
 </script>
 
 </body>
