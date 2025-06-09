@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="sv">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>RSS Läsare</title>
   <style>
     body {
@@ -16,12 +16,14 @@
       align-items: center;
       height: 100vh;
     }
+
     #rssFeed {
       max-width: 100%;
       padding-left: 10px;
       box-sizing: border-box;
       line-height: 1.2;
     }
+
     .event-title {
       font-size: 30px;
       margin: 0;
@@ -33,103 +35,105 @@
   </style>
 </head>
 <body>
+  <div id="rssFeed">
+    <div id="eventTitle" class="event-title"></div>
+  </div>
 
-<div id="rssFeed">
-  <div id="eventTitle" class="event-title"></div>
-</div>
+  <script>
+    const baseRssUrl = "https://visiteskilstuna.se/rest-api/rssService/getRssFeed?portletId=12.5b899160171ac5273c72ad9f&pageId=2.369be3c31580a19562d1977e";
 
-<script>
-  const baseRssUrl = "https://visiteskilstuna.se/rest-api/rssService/getRssFeed?portletId=12.5b899160171ac5273c72ad9f&pageId=2.369be3c31580a19562d1977e";
+    let events = [];
+    let currentEventIndex = 0;
+    let eventInterval;
 
-  let events = [];
-  let currentEventIndex = 0;
-  let eventInterval;
+    const monthMap = {
+      jan: 1, feb: 2, mar: 3, apr: 4, maj: 5, jun: 6,
+      jul: 7, aug: 8, sep: 9, okt: 10, nov: 11, dec: 12
+    };
 
-  const monthMap = {
-    jan: 1, feb: 2, mar: 3, apr: 4, maj: 5, jun: 6,
-    jul: 7, aug: 8, sep: 9, okt: 10, nov: 11, dec: 12
-  };
-
-  function formatDateRange(title) {
-    const datePattern = /^(\d{1,2})\s(\w{3})(?:\s?-\s?(\d{1,2})\s?(\w{3}))?/i;
-    const match = title.match(datePattern);
-    if (match) {
-      const startDay = parseInt(match[1], 10);
-      const startMonth = monthMap[match[2].toLowerCase()];
-      if (match[3] && match[4]) {
-        const endDay = parseInt(match[3], 10);
-        const endMonth = monthMap[match[4].toLowerCase()];
-        return `${startDay}/${startMonth} - ${endDay}/${endMonth}`;
+    function formatDateRange(title) {
+      const datePattern = /^(\d{1,2})\s(\w{3})(?:\s?-\s?(\d{1,2})\s?(\w{3}))?/i;
+      const match = title.match(datePattern);
+      if (match) {
+        const startDay = parseInt(match[1], 10);
+        const startMonth = monthMap[match[2].toLowerCase()];
+        if (match[3] && match[4]) {
+          const endDay = parseInt(match[3], 10);
+          const endMonth = monthMap[match[4].toLowerCase()];
+          return `${startDay}/${startMonth} - ${endDay}/${endMonth}`;
+        }
+        return `${startDay}/${startMonth}`;
       }
-      return `${startDay}/${startMonth}`;
+      return '';
     }
-    return '';
-  }
 
-  function decodeHtmlEntities(text) {
-    const textarea = document.createElement('textarea');
-    textarea.innerHTML = text;
-    return textarea.value;
-  }
+    function decodeHtmlEntities(text) {
+      const textarea = document.createElement('textarea');
+      textarea.innerHTML = text;
+      return textarea.value;
+    }
 
-  async function fetchRSS() {
-    try {
-      const timestamp = new Date().getTime();
-      const url = 'https://api.allorigins.win/get?url=' +
-        encodeURIComponent(baseRssUrl + `&t=${timestamp}`);
+    async function fetchRSS() {
+      try {
+        const timestamp = new Date().getTime();
+        const url = 'https://api.allorigins.win/get?url=' +
+          encodeURIComponent(baseRssUrl + `&t=${timestamp}`);
 
-      const response = await fetch(url);
-      if (!response.ok) throw new Error("Kunde inte hämta RSS-flödet.");
+        const response = await fetch(url);
+        if (!response.ok) throw new Error("Kunde inte hämta RSS-flödet.");
 
-      const data = await response.json();
-      const parser = new DOMParser();
-      const xmlDoc = parser.parseFromString(data.contents, "text/xml");
+        const data = await response.json();
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(data.contents, "text/xml");
 
-      const items = xmlDoc.getElementsByTagName("item");
-      events = [];
+        const items = xmlDoc.getElementsByTagName("item");
+        events = [];
 
-      for (let i = 0; i < items.length; i++) {
-        let title = items[i].getElementsByTagName("title")[0]?.textContent || '';
-        const formattedDate = formatDateRange(title);
+        for (let i = 0; i < items.length; i++) {
+          let title = items[i].getElementsByTagName("title")[0]?.textContent || '';
+          const formattedDate = formatDateRange(title);
 
-        title = title.replace(/^(\d{1,2}\s\w{3}(?:\s?-\s?\d{1,2}\s?\w{3})?)\s*/, '').replace(/^,/, '').trim();
-        const displayTitle = `${formattedDate} ${decodeHtmlEntities(title)}`.trim();
+          title = title.replace(/^(\d{1,2}\s\w{3}(?:\s?-\s?\d{1,2}\s?\w{3})?)\s*/, '').replace(/^,/, '').trim();
+          const displayTitle = `${formattedDate} ${decodeHtmlEntities(title)}`.trim();
 
-        events.push({ title: displayTitle });
+          events.push({ title: displayTitle });
+        }
+
+        if (events.length === 0) {
+          resetToWelcomeMessage();
+        } else {
+          showNextEvent();
+          if (!eventInterval) {
+            eventInterval = setInterval(showNextEvent, 10000);
+          }
+        }
+
+      } catch (error) {
+        console.error(error);
+        resetToWelcomeMessage();
       }
+    }
 
-      if (!eventInterval) {
-        showNextEvent();
-        eventInterval = setInterval(showNextEvent, 10000);
+    function showNextEvent() {
+      const eventTitle = document.getElementById("eventTitle");
+
+      if (events.length > 0) {
+        const currentEvent = events[currentEventIndex];
+        eventTitle.textContent = currentEvent.title;
+
+        currentEventIndex = (currentEventIndex + 1) % events.length;
+      } else {
+        resetToWelcomeMessage();
       }
-
-    } catch (error) {
-      console.error(error);
-      resetToWelcomeMessage();
     }
-  }
 
-  function showNextEvent() {
-    const eventTitle = document.getElementById("eventTitle");
-
-    if (events.length > 0) {
-      const currentEvent = events[currentEventIndex];
-      eventTitle.textContent = currentEvent.title;
-
-      currentEventIndex = (currentEventIndex + 1) % events.length;
-    } else {
-      resetToWelcomeMessage();
+    function resetToWelcomeMessage() {
+      const eventTitle = document.getElementById("eventTitle");
+      eventTitle.textContent = "VÄLKOMMEN TILL ESKILSTUNA";
     }
-  }
 
-  function resetToWelcomeMessage() {
-    const eventTitle = document.getElementById("eventTitle");
-    eventTitle.textContent = "VÄLKOMMEN TILL ESKILSTUNA";
-  }
-
-  fetchRSS();
-  setInterval(fetchRSS, 60000);
-</script>
-
+    fetchRSS();
+    setInterval(fetchRSS, 60000);
+  </script>
 </body>
 </html>
