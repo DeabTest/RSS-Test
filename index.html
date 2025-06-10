@@ -40,7 +40,8 @@
   </div>
 
   <script>
-    const baseRssUrl = "https://visiteskilstuna.se/rest-api/rssService/getRssFeed?portletId=12.5b899160171ac5273c72ad9f&pageId=2.369be3c31580a19562d1977e";
+    // Använd din egna proxy på Netlify
+    const rssUrl = "https://cozy-cobbler-0ca46b.netlify.app/.netlify/functions/rss-proxy";
 
     let events = [];
     let currentEventIndex = 0;
@@ -75,16 +76,12 @@
 
     async function fetchRSS() {
       try {
-        const timestamp = new Date().getTime();
-        const url = 'https://api.allorigins.win/get?url=' +
-          encodeURIComponent(baseRssUrl + `&t=${timestamp}`);
-
-        const response = await fetch(url);
+        const response = await fetch(rssUrl);
         if (!response.ok) throw new Error("Kunde inte hämta RSS-flödet.");
 
-        const data = await response.json();
+        const data = await response.text();
         const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(data.contents, "text/xml");
+        const xmlDoc = parser.parseFromString(data, "text/xml");
 
         const items = xmlDoc.getElementsByTagName("item");
         events = [];
