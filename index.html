@@ -40,12 +40,14 @@
   </div>
 
   <script>
-    // Använd din egna proxy på Netlify
-    const rssUrl = "https://cozy-cobbler-0ca46b.netlify.app/.netlify/functions/rss-proxy";
+    // === Grundinställningar ===
+    const baseRssUrl = "https://visiteskilstuna.se/rest-api/rssService/getRssFeed?portletId=12.5b899160171ac5273c72ad9f&pageId=2.369be3c31580a19562d1977e";
+    const proxyUrl = "https://cozy-cobbler-0ca46b.netlify.app/.netlify/functions/rss-proxy?url=";
 
     let events = [];
     let currentEventIndex = 0;
     let eventInterval;
+    let retryInterval;
 
     const monthMap = {
       jan: 1, feb: 2, mar: 3, apr: 4, maj: 5, jun: 6,
@@ -76,7 +78,10 @@
 
     async function fetchRSS() {
       try {
-        const response = await fetch(rssUrl);
+        const timestamp = new Date().getTime();
+        const fullUrl = proxyUrl + encodeURIComponent(baseRssUrl + `&t=${timestamp}`);
+
+        const response = await fetch(fullUrl);
         if (!response.ok) throw new Error("Kunde inte hämta RSS-flödet.");
 
         const data = await response.text();
@@ -101,13 +106,24 @@
         } else {
           showNextEvent();
           if (!eventInterval) {
-            eventInterval = setInterval(showNextEvent, 10000);
+            eventInterval = setInterval(showNextEvent, 10000); // Växla titel var 10:e sekund
           }
+        }
+
+        // ✅ Allt fungerade → avbryt eventuell retry-loop
+        if (retryInterval) {
+          clearInterval(retryInterval);
+          retryInterval = null;
         }
 
       } catch (error) {
         console.error(error);
         resetToWelcomeMessage();
+
+        // ⚠️ Något gick fel → försök igen varje minut tills det fungerar
+        if (!retryInterval) {
+          retryInterval = setInterval(fetchRSS, 60000); // Retry varje minut
+        }
       }
     }
 
@@ -129,8 +145,11 @@
       eventTitle.textContent = "VÄLKOMMEN TILL ESKILSTUNA";
     }
 
+    // === Starta direkt när sidan laddas ===
     fetchRSS();
-    setInterval(fetchRSS, 60000);
+
+    // === Hämta nytt varje timme om allt fungerar ===
+    setInterval(fetchRSS, 60 * 60 * 1000);
   </script>
 </body>
 </html>
