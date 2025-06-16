@@ -40,7 +40,6 @@
   </div>
 
   <script>
-    // === Grundinställningar ===
     const baseRssUrl = "https://visiteskilstuna.se/rest-api/rssService/getRssFeed?portletId=12.5b899160171ac5273c72ad9f&pageId=2.369be3c31580a19562d1977e";
     const proxyUrl = "https://cozy-cobbler-0ca46b.netlify.app/.netlify/functions/rss-proxy?url=";
 
@@ -94,23 +93,17 @@
         for (let i = 0; i < items.length; i++) {
           let title = items[i].getElementsByTagName("title")[0]?.textContent || '';
           const formattedDate = formatDateRange(title);
-
           title = title.replace(/^(\d{1,2}\s\w{3}(?:\s?-\s?\d{1,2}\s?\w{3})?)\s*/, '').replace(/^,/, '').trim();
           const displayTitle = `${formattedDate} ${decodeHtmlEntities(title)}`.trim();
-
           events.push({ title: displayTitle });
         }
 
         if (events.length === 0) {
           resetToWelcomeMessage();
-        } else {
-          showNextEvent();
-          if (!eventInterval) {
-            eventInterval = setInterval(showNextEvent, 10000); // Växla titel var 10:e sekund
-          }
+        } else if (!eventInterval) {
+          eventInterval = setInterval(showNextEvent, 10000); // visa ny titel var 10:e sekund
         }
 
-        // ✅ Allt fungerade → avbryt eventuell retry-loop
         if (retryInterval) {
           clearInterval(retryInterval);
           retryInterval = null;
@@ -120,20 +113,16 @@
         console.error(error);
         resetToWelcomeMessage();
 
-        // ⚠️ Något gick fel → försök igen varje minut tills det fungerar
         if (!retryInterval) {
-          retryInterval = setInterval(fetchRSS, 60000); // Retry varje minut
+          retryInterval = setInterval(fetchRSS, 60000); // försök igen varje minut
         }
       }
     }
 
     function showNextEvent() {
       const eventTitle = document.getElementById("eventTitle");
-
       if (events.length > 0) {
-        const currentEvent = events[currentEventIndex];
-        eventTitle.textContent = currentEvent.title;
-
+        eventTitle.textContent = events[currentEventIndex].title;
         currentEventIndex = (currentEventIndex + 1) % events.length;
       } else {
         resetToWelcomeMessage();
@@ -145,11 +134,8 @@
       eventTitle.textContent = "VÄLKOMMEN TILL ESKILSTUNA";
     }
 
-    // === Starta direkt när sidan laddas ===
     fetchRSS();
-
-    // === Hämta nytt varje timme om allt fungerar ===
-    setInterval(fetchRSS, 60 * 60 * 1000);
+    setInterval(fetchRSS, 60 * 60 * 1000); // uppdatera flödet varje timme
   </script>
 </body>
 </html>
