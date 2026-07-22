@@ -1,5 +1,5 @@
 const API_URL = "https://visiteskilstuna.se/rest-api/Evenemang/events";
-const EVENT_BASE_URL = "https://evenemang.eskilstuna.se";
+const EVENT_BASE_URL = "https://visiteskilstuna.se";
 const PAGE_SIZE = 12;
 const MAX_ATTEMPTS = 4;
 const REQUEST_TIMEOUT_MS = 12_000;
