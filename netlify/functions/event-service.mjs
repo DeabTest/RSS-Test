@@ -1,9 +1,9 @@
 const API_URL = "https://visiteskilstuna.se/rest-api/Evenemang/events";
 const EVENT_BASE_URL = "https://visiteskilstuna.se";
 const PAGE_SIZE = 12;
-const MAX_ATTEMPTS = 4;
-const REQUEST_TIMEOUT_MS = 12_000;
-const TOTAL_DEADLINE_MS = 52_000;
+const MAX_ATTEMPTS = 3;
+const REQUEST_TIMEOUT_MS = 10_000;
+const TOTAL_DEADLINE_MS = 40_000;
 
 const RECURRING_PATTERNS = [
   "sprakcafe", "laxhjalp", "biltraff", "bakluckeloppis",
