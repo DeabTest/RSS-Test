@@ -1,7 +1,6 @@
 const API_URL = "https://visiteskilstuna.se/rest-api/Evenemang/events";
 const EVENT_BASE_URL = "https://evenemang.eskilstuna.se";
 const PAGE_SIZE = 12;
-const CONCURRENCY = 3;
 const MAX_ATTEMPTS = 4;
 const REQUEST_TIMEOUT_MS = 12_000;
 const TOTAL_DEADLINE_MS = 52_000;
@@ -138,20 +137,6 @@ function simplify(event) {
   };
 }
 
-async function mapLimited(values, limit, mapper) {
-  const results = new Array(values.length);
-  let cursor = 0;
-  const workers = Array.from({ length: Math.min(limit, values.length) }, async () => {
-    while (cursor < values.length) {
-      const index = cursor;
-      cursor += 1;
-      results[index] = await mapper(values[index]);
-    }
-  });
-  await Promise.all(workers);
-  return results;
-}
-
 export async function fetchEvents(input, { fetchImpl = fetch, now = () => new Date() } = {}) {
   const filters = {};
   if (input.category) filters.category = [input.category];
@@ -164,22 +149,26 @@ export async function fetchEvents(input, { fetchImpl = fetch, now = () => new Da
     const count = Number(first.searchInfo?.count || PAGE_SIZE);
     const totalHits = Number(first.searchInfo?.totalHits ?? first.hits?.length ?? 0);
     const totalPages = count > 0 ? Math.max(1, Math.ceil(totalHits / count)) : 1;
-    const pages = Array.from({ length: Math.max(0, totalPages - 1) }, (_, index) => index + 2);
-    const remaining = await mapLimited(
-      pages,
-      CONCURRENCY,
-      (page) => fetchPage(page, count, filters, query, fetchImpl, deadlineAt),
-    );
+    // API:t returnerar kumulativa resultat: sida 2 innehåller de första 24
+    // träffarna, sida 3 de första 36 och så vidare. Sista sidan räcker därför
+    // för ett komplett underlag och undviker många överlappande anrop.
+    const completePage = totalPages > 1
+      ? await fetchPage(totalPages, count, filters, query, fetchImpl, deadlineAt)
+      : first;
+    const completeHits = completePage.hits ?? [];
+    if (completeHits.length < totalHits) {
+      throw new Error(
+        `API-sida ${totalPages} innehöll ${completeHits.length} av ${totalHits} förväntade träffar`,
+      );
+    }
 
     const seen = new Set();
     const events = [];
-    for (const response of [first, ...remaining]) {
-      for (const event of response.hits ?? []) {
-        const key = eventKey(event);
-        if (!seen.has(key)) {
-          seen.add(key);
-          events.push(event);
-        }
+    for (const event of completeHits) {
+      const key = eventKey(event);
+      if (!seen.has(key)) {
+        seen.add(key);
+        events.push(event);
       }
     }
 
@@ -213,4 +202,3 @@ export async function fetchEvents(input, { fetchImpl = fetch, now = () => new Da
     };
   }
 }
-

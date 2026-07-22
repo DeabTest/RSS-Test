@@ -11,14 +11,19 @@ function event(id, start, title = `Evenemang ${id}`) {
   };
 }
 
-test("hämtar alla sidor, tar bort dubbletter och datumfiltrerar", async () => {
+test("hämtar första och sista kumulativa sidan, tar bort dubbletter och datumfiltrerar", async () => {
   const calls = [];
   const fetchImpl = async (url) => {
     const page = Number(new URL(url).searchParams.get("page"));
     calls.push(page);
     const hits = page === 1
       ? [event("a", "2026-07-22T10:00:00"), event("b", "2026-08-01T10:00:00")]
-      : [event("b", "2026-08-01T10:00:00"), event("c", "2026-09-01T10:00:00")];
+      : [
+          event("a", "2026-07-22T10:00:00"),
+          event("b", "2026-08-01T10:00:00"),
+          event("c", "2026-09-01T10:00:00"),
+          event("c", "2026-09-01T10:00:00"),
+        ];
     return Response.json({ searchInfo: { count: 2, totalHits: 4 }, hits });
   };
 
@@ -32,6 +37,25 @@ test("hämtar alla sidor, tar bort dubbletter och datumfiltrerar", async () => {
   assert.equal(result.meta.fetched_unique, 3);
   assert.equal(result.meta.returned, 2);
   assert.deepEqual(result.events.map(({ id }) => id), ["a", "b"]);
+});
+
+test("stoppar om sista kumulativa sidan saknar träffar", async () => {
+  const fetchImpl = async (url) => {
+    const page = Number(new URL(url).searchParams.get("page"));
+    const hits = page === 1
+      ? [event("a", "2026-07-22")]
+      : [event("a", "2026-07-22"), event("b", "2026-07-23")];
+    return Response.json({ searchInfo: { count: 1, totalHits: 3 }, hits });
+  };
+
+  const result = await fetchEvents(
+    { start: "2026-07-01", end: "2026-07-31", include_recurring: true },
+    { fetchImpl },
+  );
+
+  assert.equal(result.complete, false);
+  assert.equal(result.status, "blocked");
+  assert.match(result.error, /2 av 3 förväntade träffar/);
 });
 
 test("släpper aldrig igenom en ofullständig hämtning", async () => {
@@ -56,4 +80,3 @@ test("släpper aldrig igenom en ofullständig hämtning", async () => {
   assert.match(result.error, /API-sida 2.*fyra|API-sida 2.*4 försök/);
   assert.equal("events" in result, false);
 });
-
