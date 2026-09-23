@@ -84,6 +84,16 @@ function startDate(event) {
   return String(event?.info?.start ?? "").slice(0, 10);
 }
 
+function endDate(event) {
+  return String(event?.info?.end ?? "").slice(0, 10) || startDate(event);
+}
+
+function overlapsDateRange(event, start, end) {
+  const eventStart = startDate(event);
+  if (!eventStart) return false;
+  return eventStart <= end && start <= endDate(event);
+}
+
 function shouldHideRecurring(event) {
   const haystack = normalize(`${event.title ?? ""} ${event?.info?.location?.name ?? ""}`);
   return RECURRING_PATTERNS.some((pattern) => haystack.includes(pattern));
@@ -146,19 +156,44 @@ export async function fetchEvents(input, { fetchImpl = fetch, now = () => new Da
 
   try {
     const first = await fetchPage(1, PAGE_SIZE, filters, query, fetchImpl, deadlineAt);
-    const count = Number(first.searchInfo?.count || PAGE_SIZE);
-    const totalHits = Number(first.searchInfo?.totalHits ?? first.hits?.length ?? 0);
-    const totalPages = count > 0 ? Math.max(1, Math.ceil(totalHits / count)) : 1;
+    const firstCount = Number(first.searchInfo?.count || PAGE_SIZE);
+    const firstTotalHits = Number(first.searchInfo?.totalHits ?? first.hits?.length ?? 0);
+    let completePageNumber = firstCount > 0 ? Math.max(1, Math.ceil(firstTotalHits / firstCount)) : 1;
     // API:t returnerar kumulativa resultat: sida 2 innehåller de första 24
     // träffarna, sida 3 de första 36 och så vidare. Sista sidan räcker därför
     // för ett komplett underlag och undviker många överlappande anrop.
-    const completePage = totalPages > 1
-      ? await fetchPage(totalPages, count, filters, query, fetchImpl, deadlineAt)
+    let completePage = completePageNumber > 1
+      ? await fetchPage(completePageNumber, firstCount, filters, query, fetchImpl, deadlineAt)
       : first;
+
+    // Antalet träffar kan ändras mellan första och sista API-anropet. Följ då
+    // den senaste sidinformationen i stället för att jämföra mot en inaktuell
+    // totalsiffra. Om förändringen flyttar sista sidan hämtas den nya sista sidan.
+    for (let adjustment = 0; adjustment < 3; adjustment += 1) {
+      const latestCount = Number(completePage.searchInfo?.count || firstCount);
+      const latestTotalHits = Number(
+        completePage.searchInfo?.totalHits ?? completePage.hits?.length ?? 0,
+      );
+      const latestLastPage = latestCount > 0
+        ? Math.max(1, Math.ceil(latestTotalHits / latestCount))
+        : 1;
+
+      if (latestLastPage === completePageNumber) break;
+      completePageNumber = latestLastPage;
+      completePage = await fetchPage(
+        completePageNumber, latestCount, filters, query, fetchImpl, deadlineAt,
+      );
+
+      if (adjustment === 2) {
+        throw new Error("API-träffantalet ändrades under hämtningen och hann inte stabiliseras");
+      }
+    }
+
+    const totalHits = Number(completePage.searchInfo?.totalHits ?? completePage.hits?.length ?? 0);
     const completeHits = completePage.hits ?? [];
     if (completeHits.length < totalHits) {
       throw new Error(
-        `API-sida ${totalPages} innehöll ${completeHits.length} av ${totalHits} förväntade träffar`,
+        `API-sida ${completePageNumber} innehöll ${completeHits.length} av ${totalHits} förväntade träffar`,
       );
     }
 
@@ -172,7 +207,7 @@ export async function fetchEvents(input, { fetchImpl = fetch, now = () => new Da
       }
     }
 
-    const dated = events.filter((event) => input.start <= startDate(event) && startDate(event) <= input.end);
+    const dated = events.filter((event) => overlapsDateRange(event, input.start, input.end));
     const filtered = input.include_recurring ? dated : dated.filter((event) => !shouldHideRecurring(event));
     filtered.sort((a, b) => String(a?.info?.start ?? "").localeCompare(String(b?.info?.start ?? "")));
 
