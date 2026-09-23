@@ -24,7 +24,7 @@ test("hämtar första och sista kumulativa sidan, tar bort dubbletter och datumf
           event("c", "2026-09-01T10:00:00"),
           event("c", "2026-09-01T10:00:00"),
         ];
-    return Response.json({ searchInfo: { count: 2, totalHits: 4 }, hits });
+    return Response.json({ searchInfo: { count: hits.length, totalHits: 13 }, hits });
   };
 
   const result = await fetchEvents(
@@ -45,7 +45,7 @@ test("stoppar om sista kumulativa sidan saknar träffar", async () => {
     const hits = page === 1
       ? [event("a", "2026-07-22")]
       : [event("a", "2026-07-22"), event("b", "2026-07-23")];
-    return Response.json({ searchInfo: { count: 1, totalHits: 3 }, hits });
+    return Response.json({ searchInfo: { count: hits.length, totalHits: 13 }, hits });
   };
 
   const result = await fetchEvents(
@@ -63,7 +63,7 @@ test("släpper aldrig igenom en ofullständig hämtning", async () => {
   const fetchImpl = async (url) => {
     const page = Number(new URL(url).searchParams.get("page"));
     if (page === 1) {
-      return Response.json({ searchInfo: { count: 1, totalHits: 2 }, hits: [event("a", "2026-07-22")] });
+      return Response.json({ searchInfo: { count: 1, totalHits: 13 }, hits: [event("a", "2026-07-22")] });
     }
     pageTwoAttempts += 1;
     return new Response("fel", { status: 500, statusText: "Internal Server Error" });
