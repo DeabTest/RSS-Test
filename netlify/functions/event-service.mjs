@@ -156,32 +156,29 @@ export async function fetchEvents(input, { fetchImpl = fetch, now = () => new Da
 
   try {
     const first = await fetchPage(1, PAGE_SIZE, filters, query, fetchImpl, deadlineAt);
-    const firstCount = Number(first.searchInfo?.count || PAGE_SIZE);
     const firstTotalHits = Number(first.searchInfo?.totalHits ?? first.hits?.length ?? 0);
-    let completePageNumber = firstCount > 0 ? Math.max(1, Math.ceil(firstTotalHits / firstCount)) : 1;
+    let completePageNumber = Math.max(1, Math.ceil(firstTotalHits / PAGE_SIZE));
     // API:t returnerar kumulativa resultat: sida 2 innehåller de första 24
     // träffarna, sida 3 de första 36 och så vidare. Sista sidan räcker därför
     // för ett komplett underlag och undviker många överlappande anrop.
     let completePage = completePageNumber > 1
-      ? await fetchPage(completePageNumber, firstCount, filters, query, fetchImpl, deadlineAt)
+      ? await fetchPage(completePageNumber, PAGE_SIZE, filters, query, fetchImpl, deadlineAt)
       : first;
 
-    // Antalet träffar kan ändras mellan första och sista API-anropet. Följ då
-    // den senaste sidinformationen i stället för att jämföra mot en inaktuell
-    // totalsiffra. Om förändringen flyttar sista sidan hämtas den nya sista sidan.
+    // Antalet träffar kan ändras mellan första och sista API-anropet. Använd
+    // alltid den begärda sidstorleken för sidberäkningen. API-fältet
+    // searchInfo.count är kumulativt på senare sidor och är därför inte en
+    // stabil sidstorlek.
     for (let adjustment = 0; adjustment < 3; adjustment += 1) {
-      const latestCount = Number(completePage.searchInfo?.count || firstCount);
       const latestTotalHits = Number(
         completePage.searchInfo?.totalHits ?? completePage.hits?.length ?? 0,
       );
-      const latestLastPage = latestCount > 0
-        ? Math.max(1, Math.ceil(latestTotalHits / latestCount))
-        : 1;
+      const latestLastPage = Math.max(1, Math.ceil(latestTotalHits / PAGE_SIZE));
 
       if (latestLastPage === completePageNumber) break;
       completePageNumber = latestLastPage;
       completePage = await fetchPage(
-        completePageNumber, latestCount, filters, query, fetchImpl, deadlineAt,
+        completePageNumber, PAGE_SIZE, filters, query, fetchImpl, deadlineAt,
       );
 
       if (adjustment === 2) {
