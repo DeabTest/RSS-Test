@@ -11,24 +11,31 @@ function event(id, start, end = start) {
   };
 }
 
-test("accepterar senaste kompletta totalsiffran när antalet träffar minskar under hämtningen", async () => {
+function events(count, start = "2026-09-25") {
+  return Array.from({ length: count }, (_, index) => event(String(index + 1), start));
+}
+
+test("ignorerar kumulativt searchInfo.count och behåller begärd sidstorlek", async () => {
   const calls = [];
+  const allEvents = events(505);
   const fetchImpl = async (url) => {
-    const page = Number(new URL(url).searchParams.get("page"));
-    calls.push(page);
+    const parsed = new URL(url);
+    const page = Number(parsed.searchParams.get("page"));
+    const count = Number(parsed.searchParams.get("count"));
+    calls.push({ page, count });
+
     if (page === 1) {
       return Response.json({
-        searchInfo: { count: 2, totalHits: 4 },
-        hits: [event("a", "2026-09-25"), event("b", "2026-09-26")],
+        searchInfo: { count: 12, totalHits: 505 },
+        hits: allEvents.slice(0, 12),
       });
     }
+
+    assert.equal(page, 43);
+    assert.equal(count, 12);
     return Response.json({
-      searchInfo: { count: 2, totalHits: 3 },
-      hits: [
-        event("a", "2026-09-25"),
-        event("b", "2026-09-26"),
-        event("c", "2026-09-27"),
-      ],
+      searchInfo: { count: 505, totalHits: 505 },
+      hits: allEvents,
     });
   };
 
@@ -38,38 +45,33 @@ test("accepterar senaste kompletta totalsiffran när antalet träffar minskar un
   );
 
   assert.equal(result.complete, true);
-  assert.deepEqual(calls, [1, 2]);
-  assert.equal(result.meta.api_total_hits, 3);
-  assert.equal(result.meta.returned, 3);
+  assert.deepEqual(calls, [{ page: 1, count: 12 }, { page: 43, count: 12 }]);
+  assert.equal(result.meta.api_total_hits, 505);
+  assert.equal(result.meta.fetched_unique, 505);
 });
 
-test("hämtar en ny sista sida om träffantalet växer till fler sidor", async () => {
+test("hämtar en ny sista sida om totalHits växer till fler sidor", async () => {
   const calls = [];
+  const twentyFive = events(25);
   const fetchImpl = async (url) => {
     const page = Number(new URL(url).searchParams.get("page"));
     calls.push(page);
+
     if (page === 1) {
       return Response.json({
-        searchInfo: { count: 2, totalHits: 4 },
-        hits: [event("a", "2026-09-25"), event("b", "2026-09-25")],
+        searchInfo: { count: 12, totalHits: 24 },
+        hits: twentyFive.slice(0, 12),
       });
     }
     if (page === 2) {
       return Response.json({
-        searchInfo: { count: 2, totalHits: 5 },
-        hits: [
-          event("a", "2026-09-25"), event("b", "2026-09-25"),
-          event("c", "2026-09-26"), event("d", "2026-09-26"),
-        ],
+        searchInfo: { count: 24, totalHits: 25 },
+        hits: twentyFive.slice(0, 24),
       });
     }
     return Response.json({
-      searchInfo: { count: 2, totalHits: 5 },
-      hits: [
-        event("a", "2026-09-25"), event("b", "2026-09-25"),
-        event("c", "2026-09-26"), event("d", "2026-09-26"),
-        event("e", "2026-09-27"),
-      ],
+      searchInfo: { count: 25, totalHits: 25 },
+      hits: twentyFive,
     });
   };
 
@@ -80,13 +82,13 @@ test("hämtar en ny sista sida om träffantalet växer till fler sidor", async (
 
   assert.equal(result.complete, true);
   assert.deepEqual(calls, [1, 2, 3]);
-  assert.equal(result.meta.api_total_hits, 5);
-  assert.equal(result.meta.returned, 5);
+  assert.equal(result.meta.api_total_hits, 25);
+  assert.equal(result.meta.returned, 25);
 });
 
 test("tar med evenemang som började tidigare men pågår under sökperioden", async () => {
   const fetchImpl = async () => Response.json({
-    searchInfo: { count: 12, totalHits: 3 },
+    searchInfo: { count: 3, totalHits: 3 },
     hits: [
       event("ongoing", "2026-09-01T10:00:00", "2026-09-30T18:00:00"),
       event("before", "2026-09-01T10:00:00", "2026-09-20T18:00:00"),
