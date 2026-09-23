@@ -74,9 +74,9 @@ test("släpper aldrig igenom en ofullständig hämtning", async () => {
     { fetchImpl },
   );
 
-  assert.equal(pageTwoAttempts, 4);
+  assert.equal(pageTwoAttempts, 3);
   assert.equal(result.complete, false);
   assert.equal(result.status, "blocked");
-  assert.match(result.error, /API-sida 2.*fyra|API-sida 2.*4 försök/);
+  assert.match(result.error, /API-sida 2.*3 försök/);
   assert.equal("events" in result, false);
 });
