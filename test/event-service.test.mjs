@@ -61,6 +61,63 @@ test("stoppar om sista kumulativa sidan saknar träffar", async () => {
   assert.match(result.error, /12 av 13 förväntade träffar/);
 });
 
+test("stoppar när en dubblett på sista sidan döljer en saknad träff", async () => {
+  const calls = [];
+  const firstHits = Array.from({ length: 12 }, (_, index) =>
+    event(String(index + 1), "2026-07-22")
+  );
+  const fetchImpl = async (url) => {
+    const page = Number(new URL(url).searchParams.get("page"));
+    calls.push(page);
+    const hits = page === 1 ? firstHits : [...firstHits, firstHits[0]];
+    return Response.json({ searchInfo: { count: hits.length, totalHits: 13 }, hits });
+  };
+
+  const result = await fetchEvents(
+    { start: "2026-07-01", end: "2026-07-31", include_recurring: true },
+    { fetchImpl },
+  );
+
+  assert.deepEqual(calls, [1, 2]);
+  assert.equal(result.status, "blocked");
+  assert.equal(result.complete, false);
+  assert.match(result.error, /12 av 13 förväntade träffar efter dubblettrensning/);
+  assert.equal("events" in result, false);
+});
+
+test("stoppar när sista sidan saknar ett verifierbart träffantal", async () => {
+  const hits = Array.from({ length: 12 }, (_, index) =>
+    event(String(index + 1), "2026-07-22")
+  );
+  const fetchImpl = async (url) => {
+    const page = Number(new URL(url).searchParams.get("page"));
+    const searchInfo = page === 1 ? { count: 12, totalHits: 13 } : { count: 12 };
+    return Response.json({ searchInfo, hits });
+  };
+
+  const result = await fetchEvents(
+    { start: "2026-07-01", end: "2026-07-31", include_recurring: true },
+    { fetchImpl },
+  );
+
+  assert.equal(result.status, "blocked");
+  assert.equal(result.complete, false);
+  assert.match(result.error, /API-sida 2 saknade ett giltigt searchInfo\.totalHits/);
+  assert.equal("events" in result, false);
+});
+
+test("godkänner noll rapporterade träffar med en tom träfflista", async () => {
+  const fetchImpl = async () => Response.json({ searchInfo: { totalHits: 0 }, hits: [] });
+  const result = await fetchEvents(
+    { start: "2026-07-01", end: "2026-07-31", include_recurring: true },
+    { fetchImpl },
+  );
+
+  assert.equal(result.status, "ok");
+  assert.equal(result.complete, true);
+  assert.deepEqual(result.events, []);
+});
+
 test("släpper aldrig igenom en ofullständig hämtning", async () => {
   let pageTwoAttempts = 0;
   const firstHits = Array.from({ length: 12 }, (_, index) =>

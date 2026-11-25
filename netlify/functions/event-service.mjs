@@ -80,6 +80,17 @@ function eventKey(event) {
   return String(event.id || event.uri || `${event.title ?? ""}-${info.start ?? ""}`);
 }
 
+function readTotalHits(page, pageNumber) {
+  const reported = page?.searchInfo?.totalHits;
+  const totalHits = typeof reported === "string" && /^\d+$/.test(reported.trim())
+    ? Number(reported)
+    : reported;
+  if (!Number.isSafeInteger(totalHits) || totalHits < 0) {
+    throw new Error(`API-sida ${pageNumber} saknade ett giltigt searchInfo.totalHits`);
+  }
+  return totalHits;
+}
+
 function startDate(event) {
   return String(event?.info?.start ?? "").slice(0, 10);
 }
@@ -156,7 +167,7 @@ export async function fetchEvents(input, { fetchImpl = fetch, now = () => new Da
 
   try {
     const first = await fetchPage(1, PAGE_SIZE, filters, query, fetchImpl, deadlineAt);
-    const firstTotalHits = Number(first.searchInfo?.totalHits ?? first.hits?.length ?? 0);
+    const firstTotalHits = readTotalHits(first, 1);
     let completePageNumber = Math.max(1, Math.ceil(firstTotalHits / PAGE_SIZE));
     // API:t returnerar kumulativa resultat: sida 2 innehåller de första 24
     // träffarna, sida 3 de första 36 och så vidare. Sista sidan räcker därför
@@ -169,11 +180,9 @@ export async function fetchEvents(input, { fetchImpl = fetch, now = () => new Da
     // alltid den begärda sidstorleken för sidberäkningen. API-fältet
     // searchInfo.count är kumulativt på senare sidor och är därför inte en
     // stabil sidstorlek.
+    let totalHits = readTotalHits(completePage, completePageNumber);
     for (let adjustment = 0; adjustment < 3; adjustment += 1) {
-      const latestTotalHits = Number(
-        completePage.searchInfo?.totalHits ?? completePage.hits?.length ?? 0,
-      );
-      const latestLastPage = Math.max(1, Math.ceil(latestTotalHits / PAGE_SIZE));
+      const latestLastPage = Math.max(1, Math.ceil(totalHits / PAGE_SIZE));
 
       if (latestLastPage === completePageNumber) break;
       completePageNumber = latestLastPage;
@@ -184,14 +193,12 @@ export async function fetchEvents(input, { fetchImpl = fetch, now = () => new Da
       if (adjustment === 2) {
         throw new Error("API-träffantalet ändrades under hämtningen och hann inte stabiliseras");
       }
+      totalHits = readTotalHits(completePage, completePageNumber);
     }
 
-    const totalHits = Number(completePage.searchInfo?.totalHits ?? completePage.hits?.length ?? 0);
-    const completeHits = completePage.hits ?? [];
-    if (completeHits.length < totalHits) {
-      throw new Error(
-        `API-sida ${completePageNumber} innehöll ${completeHits.length} av ${totalHits} förväntade träffar`,
-      );
+    const completeHits = completePage.hits;
+    if (!Array.isArray(completeHits)) {
+      throw new Error(`API-sida ${completePageNumber} saknade en giltig träfflista`);
     }
 
     const seen = new Set();
@@ -202,6 +209,12 @@ export async function fetchEvents(input, { fetchImpl = fetch, now = () => new Da
         seen.add(key);
         events.push(event);
       }
+    }
+
+    if (events.length !== totalHits) {
+      throw new Error(
+        `API-sida ${completePageNumber} innehöll ${events.length} av ${totalHits} förväntade träffar efter dubblettrensning`,
+      );
     }
 
     const dated = events.filter((event) => overlapsDateRange(event, input.start, input.end));
