@@ -40,13 +40,17 @@
   </div>
 
   <script>
-    const baseRssUrl = "https://visiteskilstuna.se/rest-api/rssService/getRssFeed?portletId=12.5b899160171ac5273c72ad9f&pageId=2.369be3c31580a19562d1977e";
-    const proxyUrl = "https://cozy-cobbler-0ca46b.netlify.app/.netlify/functions/rss-proxy?url=";
+    const proxyUrl = "https://cozy-cobbler-0ca46b.netlify.app/.netlify/functions/rss-proxy";
+    const rotationMs = 10_000;
+    const refreshMs = 60 * 60_000;
+    const retryMs = 60_000;
+    const requestTimeoutMs = 15_000;
+    const welcomeMessage = "VÄLKOMMEN TILL ESKILSTUNA";
+    const eventTitle = document.getElementById("eventTitle");
 
     let events = [];
     let currentEventIndex = 0;
     let eventInterval;
-    let retryInterval;
 
     const monthMap = {
       jan: 1, feb: 2, mar: 3, apr: 4, maj: 5, jun: 6,
@@ -76,66 +80,70 @@
     }
 
     async function fetchRSS() {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), requestTimeoutMs);
+      let nextRefresh = refreshMs;
       try {
-        const timestamp = new Date().getTime();
-        const fullUrl = proxyUrl + encodeURIComponent(baseRssUrl + `&t=${timestamp}`);
-
-        const response = await fetch(fullUrl);
-        if (!response.ok) throw new Error("Kunde inte hämta RSS-flödet.");
-
+        const response = await fetch(proxyUrl, { cache: "no-store", signal: controller.signal });
+        if (!response.ok) throw new Error(`Kunde inte hämta RSS-flödet (HTTP ${response.status}).`);
         const data = await response.text();
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(data, "text/xml");
+        const channel = xmlDoc.querySelector("rss > channel");
+        if (xmlDoc.querySelector("parsererror") || !channel) {
+          throw new Error("RSS-flödet hade ett ogiltigt format.");
+        }
 
-        const items = xmlDoc.getElementsByTagName("item");
-        events = [];
-
-        for (let i = 0; i < items.length; i++) {
-          let title = items[i].getElementsByTagName("title")[0]?.textContent || '';
+        const items = channel.getElementsByTagName("item");
+        const nextEvents = [];
+        for (const item of items) {
+          let title = item.getElementsByTagName("title")[0]?.textContent || '';
           const formattedDate = formatDateRange(title);
           title = title.replace(/^(\d{1,2}\s\w{3}(?:\s?-\s?\d{1,2}\s?\w{3})?)\s*/, '').replace(/^,/, '').trim();
           const displayTitle = `${formattedDate} ${decodeHtmlEntities(title)}`.trim();
-          events.push({ title: displayTitle });
+          if (displayTitle) nextEvents.push({ title: displayTitle });
+        }
+        if (items.length > 0 && nextEvents.length === 0) {
+          throw new Error("RSS-flödet saknade visningsbara titlar.");
         }
 
-        if (events.length === 0) {
-          resetToWelcomeMessage();
-        } else if (!eventInterval) {
-          eventInterval = setInterval(showNextEvent, 10000); // visa ny titel var 10:e sekund
-        }
-
-        if (retryInterval) {
-          clearInterval(retryInterval);
-          retryInterval = null;
-        }
-
+        updateEvents(nextEvents);
       } catch (error) {
         console.error(error);
-        resetToWelcomeMessage();
+        if (events.length === 0) eventTitle.textContent = welcomeMessage;
+        nextRefresh = retryMs;
+      } finally {
+        clearTimeout(timeout);
+        setTimeout(fetchRSS, nextRefresh);
+      }
+    }
 
-        if (!retryInterval) {
-          retryInterval = setInterval(fetchRSS, 60000); // försök igen varje minut
-        }
+    function updateEvents(nextEvents) {
+      events = nextEvents;
+      if (events.length === 0) {
+        clearInterval(eventInterval);
+        eventInterval = undefined;
+        eventTitle.textContent = welcomeMessage;
+        return;
+      }
+
+      const displayedIndex = eventInterval === undefined
+        ? -1
+        : events.findIndex(({ title }) => title === eventTitle.textContent);
+      currentEventIndex = (displayedIndex + 1) % events.length;
+      if (displayedIndex === -1) {
+        clearInterval(eventInterval);
+        showNextEvent();
+        eventInterval = setInterval(showNextEvent, rotationMs);
       }
     }
 
     function showNextEvent() {
-      const eventTitle = document.getElementById("eventTitle");
-      if (events.length > 0) {
-        eventTitle.textContent = events[currentEventIndex].title;
-        currentEventIndex = (currentEventIndex + 1) % events.length;
-      } else {
-        resetToWelcomeMessage();
-      }
-    }
-
-    function resetToWelcomeMessage() {
-      const eventTitle = document.getElementById("eventTitle");
-      eventTitle.textContent = "VÄLKOMMEN TILL ESKILSTUNA";
+      eventTitle.textContent = events[currentEventIndex].title;
+      currentEventIndex = (currentEventIndex + 1) % events.length;
     }
 
     fetchRSS();
-    setInterval(fetchRSS, 60 * 60 * 1000); // uppdatera flödet varje timme
   </script>
 </body>
 </html>
